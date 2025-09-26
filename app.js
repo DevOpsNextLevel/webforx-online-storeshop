@@ -33,18 +33,26 @@ const ProductEntity = new EntitySchema({
   },
 });
 
-let dbConfig;
-if (process.env.DB_SECRET) {
-  dbConfig = JSON.parse(process.env.DB_SECRET);
-} else {
-  dbConfig = {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 5432,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    database: process.env.DB_NAME
-  };
+// Prefer Secrets Manager JSON if provided
+let secretCfg;
+try {
+  if (process.env.DB_SECRET) secretCfg = JSON.parse(process.env.DB_SECRET);
+} catch (e) {
+  console.error('Failed to parse DB_SECRET JSON:', e);
 }
+const DB_HOST = secretCfg?.host ?? process.env.DB_HOST ?? 'localhost';
+const DB_PORT = Number(secretCfg?.port ?? process.env.DB_PORT ?? 5432);
+const DB_USER = secretCfg?.username ?? process.env.DB_USER ?? 'postgres';
+const DB_PASS = secretCfg?.password ?? process.env.DB_PASS ?? 'postgres';
+const DB_NAME = secretCfg?.dbname ?? process.env.DB_NAME ?? 'webforx_store';
+const DB_SSL_ENABLED = (process.env.DB_SSL === 'true') ||
+  ((process.env.DB_HOST && process.env.DB_HOST !== 'localhost') || !!secretCfg);
+const DB_SSL =
+  DB_SSL_ENABLED
+    ? (process.env.DB_SSL_CA_PATH
+        ? { ca: fs.readFileSync(process.env.DB_SSL_CA_PATH).toString() }
+        : { rejectUnauthorized: false })
+    : false;
 
 const OrderEntity = new EntitySchema({
   name: 'Order',
@@ -91,21 +99,15 @@ async function ensureDatabaseExists() {
     console.log('CREATE_DB_IF_MISSING=false (skipping DB creation)');
     return;
   }
-  const targetDB = process.env.DB_NAME || 'webforx_store';
+  const targetDB = DB_NAME;
   const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
-    ssl:
-      process.env.DB_SSL === 'true' ||
-      (process.env.DB_HOST && process.env.DB_HOST !== 'localhost')
-        ? (process.env.DB_SSL_CA_PATH
-            ? { ca: fs.readFileSync(process.env.DB_SSL_CA_PATH).toString() }
-            : { rejectUnauthorized: false })
-        : false,
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASS || 'postgres',
-    database: 'postgres',
-  };
+   host: DB_HOST,
+   port: DB_PORT,
+   ssl: DB_SSL,
+   user: DB_USER,
+   password: DB_PASS,
+   database: 'postgres',
+ };
   const client = new Client(dbConfig);
   await client.connect();
   const result = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [targetDB]);
@@ -152,20 +154,14 @@ async function uploadStaticFilesToS3() {
 }
 
 /** TypeORM DS */
-const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
-  ssl:
-    process.env.DB_SSL === 'true' ||
-    (process.env.DB_HOST && process.env.DB_HOST !== 'localhost')
-      ? (process.env.DB_SSL_CA_PATH
-          ? { ca: fs.readFileSync(process.env.DB_SSL_CA_PATH).toString() }
-          : { rejectUnauthorized: false })
-      : false,
-  username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASS || 'postgres',
-  database: process.env.DB_NAME || 'webforx_store',
+ const AppDataSource = new DataSource({
+   type: 'postgres',
+   host: DB_HOST,
+   port: DB_PORT,
+   ssl: DB_SSL,
+   username: DB_USER,
+   password: DB_PASS,
+   database: DB_NAME,
   synchronize: (process.env.TYPEORM_SYNC || 'true').toLowerCase() === 'true',
   logging: false,
   entities: [ProductEntity, OrderEntity, OrderItemEntity],

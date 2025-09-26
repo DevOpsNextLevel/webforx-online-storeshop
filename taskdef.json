@@ -4,8 +4,8 @@
     "requiresCompatibilities": ["FARGATE"],
     "cpu": "256",
     "memory": "512",
-    "executionRoleArn": "arn:aws:iam::123456789012:role/ecsTaskExecutionRole",
-    "taskRoleArn": "arn:aws:iam::123456789012:role/appTaskRole",
+    "executionRoleArn": "arn:aws:iam::108188564905:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::108188564905:role/appTaskRole",
     "containerDefinitions": [
       {
         "name": "app",
@@ -37,7 +37,7 @@
         },
         "healthCheck": {
           "retries": 3,
-          "command": ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"],
+          "command": ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"],
           "timeout": 5,
           "interval": 30,
           "startPeriod": 10

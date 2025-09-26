@@ -2,6 +2,7 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
+RUN apk add --no-cache dumb-init curl
 RUN npm ci --omit=dev
 COPY . .
 
