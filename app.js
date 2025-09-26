@@ -9,6 +9,9 @@ const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
+const IMAGE_EXT = process.env.IMAGE_EXT || 'jpg';
+const HERO_IMAGE = process.env.HERO_IMAGE || `shop.${IMAGE_EXT}`;
+
 const app = express();
 const port = Number(process.env.PORT || 8080);
 
@@ -205,8 +208,8 @@ if (fs.existsSync(staticDir)) {
 /** Hero image URL (S3 or local) */
 const heroImageUrl =
   (process.env.S3_BUCKET && process.env.S3_REGION)
-    ? `https://${process.env.S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/shop.svg`
-    : '/static/shop.svg';
+    ? `https://${process.env.S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${HERO_IMAGE}`
+    : `/static/${HERO_IMAGE}`;
 
 /** Health endpoints */
 app.get('/healthz', (_req, res) => res.status(200).send('ok'));
@@ -394,12 +397,12 @@ ensureDatabaseExists()
       const defaults = (process.env.SEED_PRODUCTS_JSON
         ? JSON.parse(process.env.SEED_PRODUCTS_JSON)
         : [
-            { name: 'WFX Strawberry Delight', price: 3.0, image: 'strawberry.svg' },
-            { name: 'WFX Dark Chocolate',    price: 2.5, image: 'chocolate.svg' },
-            { name: 'WFX Candy Crunch',      price: 2.75, image: 'candy.svg' },
-            { name: 'WFX Berry Burst',       price: 3.0, image: 'berry.svg' },
-            { name: 'WFX Salted Caramel',    price: 2.5, image: 'caramel.svg' },
-            { name: 'WFX Orange Zest',       price: 2.5, image: 'orange.svg' },
+            { name: 'WFX Strawberry Delight', price: 3.0, image: 'strawberry.jpg' },
+            { name: 'WFX Dark Chocolate',    price: 2.5, image: 'chocolate.jpg' },
+            { name: 'WFX Candy Crunch',      price: 2.75, image: 'candy.jpg' },
+            { name: 'WFX Berry Burst',       price: 3.0, image: 'berry.jpg' },
+            { name: 'WFX Salted Caramel',    price: 2.5, image: 'caramel.jpg' },
+            { name: 'WFX Orange Zest',       price: 2.5, image: 'orange.jpg' },
           ]);
       await repo.save(defaults);
       console.log('Inserted default products.');
