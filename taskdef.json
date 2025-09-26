@@ -22,8 +22,11 @@
           { "name": "DB_SSL", "value": "true" }
         ],
         "secrets": [
-          { "name": "DB_PASS", "valueFrom": "arn:aws:ssm:us-east-1:123456789012:parameter/wfx/db/pass" }
-        ],
+            {
+              "name": "DB_SECRET",
+              "valueFrom": "arn:aws:secretsmanager:us-east-1:108188564905:secret:rds!db-c07a2f88-f8b2-424a-ae3a-acd4ed2d6ed5-MWd7io"
+            }
+          ],          
         "logConfiguration": {
           "logDriver": "awslogs",
           "options": {
