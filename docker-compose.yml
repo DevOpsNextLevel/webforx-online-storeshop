@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: webforx_store
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+  app:
+    build: .
+    environment:
+      PORT: 8080
+      TYPEORM_SYNC: "true"
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: webforx_store
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_SSL: "false"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+volumes:
+  dbdata:

@@ -1,0 +1,45 @@
+{
+    "family": "wfx-storeshop",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::123456789012:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::123456789012:role/appTaskRole",
+    "containerDefinitions": [
+      {
+        "name": "app",
+        "image": "public.ecr.aws/docker/library/node:20-alpine",
+        "essential": true,
+        "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
+        "environment": [
+          { "name": "PORT", "value": "8080" },
+          { "name": "TYPEORM_SYNC", "value": "true" },
+          { "name": "DB_HOST", "value": "your-rds-endpoint.rds.amazonaws.com" },
+          { "name": "DB_PORT", "value": "5432" },
+          { "name": "DB_NAME", "value": "webforx_store" },
+          { "name": "DB_USER", "value": "app_user" },
+          { "name": "DB_SSL", "value": "true" }
+        ],
+        "secrets": [
+          { "name": "DB_PASS", "valueFrom": "arn:aws:ssm:us-east-1:123456789012:parameter/wfx/db/pass" }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/wfx-storeshop",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "retries": 3,
+          "command": ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"],
+          "timeout": 5,
+          "interval": 30,
+          "startPeriod": 10
+        }
+      }
+    ]
+  }
+  
