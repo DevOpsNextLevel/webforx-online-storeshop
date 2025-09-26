@@ -33,6 +33,19 @@ const ProductEntity = new EntitySchema({
   },
 });
 
+let dbConfig;
+if (process.env.DB_SECRET) {
+  dbConfig = JSON.parse(process.env.DB_SECRET);
+} else {
+  dbConfig = {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT || 5432,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME
+  };
+}
+
 const OrderEntity = new EntitySchema({
   name: 'Order',
   tableName: 'orders',
