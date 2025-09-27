@@ -13,14 +13,19 @@
         "essential": true,
         "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
         "environment": [
-          { "name": "PORT", "value": "8080" },
-          { "name": "TYPEORM_SYNC", "value": "true" },
-          { "name": "DB_HOST", "value": "database-1.c3mldqa7xfbn.us-east-1.rds.amazonaws.com" },
-          { "name": "DB_PORT", "value": "5432" },
-          { "name": "DB_NAME", "value": "webforx_store" },
-          { "name": "DB_USER", "value": "app_user" },
-          { "name": "DB_SSL", "value": "true" }
-        ],
+            { "name": "PORT", "value": "8080" },
+            { "name": "TYPEORM_SYNC", "value": "true" },
+            { "name": "DB_HOST", "value": "database-1.c3mldqa7xfbn.us-east-1.rds.amazonaws.com" },
+            { "name": "DB_PORT", "value": "5432" },
+            { "name": "DB_NAME", "value": "webforx_store" },
+            { "name": "DB_USER", "value": "app_user" },
+            { "name": "DB_SSL", "value": "true" },
+          
+            { "name": "S3_BUCKET", "value": "godwill-donut-market" },
+            { "name": "S3_REGION", "value": "us-east-1" },
+            { "name": "IMAGE_EXT", "value": "jpg" },
+            { "name": "HERO_IMAGE", "value": "shop.jpg" }
+          ]
         "secrets": [
             {
               "name": "DB_SECRET",
