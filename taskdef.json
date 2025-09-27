@@ -9,7 +9,7 @@
     "containerDefinitions": [
       {
         "name": "app",
-        "image": "public.ecr.aws/docker/library/node:20-alpine",
+        "image": "108188564905.dkr.ecr.us-east-1.amazonaws.com/webforx-online-storeshop:latest",
         "essential": true,
         "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
         "environment": [
