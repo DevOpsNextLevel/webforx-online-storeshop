@@ -106,6 +106,12 @@ Set `STARTUP_UPLOAD_STATIC=true` and provide `S3_BUCKET`/`S3_REGION` to upload `
 - `GET /healthz` (liveness)
 - `GET /readyz` (readiness)
 
+## CI/CD
+
+- GitHub Actions workflow: `.github/workflows/ci.yml`
+- Triggers on `push`, `pull_request`, and manual `workflow_dispatch`
+- Runs unit tests first, then Postgres-backed integration tests
+
 ## Repo Files
 
 - `app.js`: Express app + TypeORM setup
