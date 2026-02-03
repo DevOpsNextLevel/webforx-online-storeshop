@@ -11,9 +11,11 @@ const path = require('path');
 
 const IMAGE_EXT = process.env.IMAGE_EXT || 'jpg';
 const HERO_IMAGE = process.env.HERO_IMAGE || `shop.${IMAGE_EXT}`;
+const DB_TYPE = process.env.DB_TYPE || 'postgres';
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
+const host = process.env.HOST || '0.0.0.0';
 
 /** Security & perf */
 app.set('trust proxy', true);
@@ -47,9 +49,11 @@ const DB_HOST = secretCfg?.host ?? process.env.DB_HOST ?? 'localhost';
 const DB_PORT = Number(secretCfg?.port ?? process.env.DB_PORT ?? 5432);
 const DB_USER = secretCfg?.username ?? process.env.DB_USER ?? 'postgres';
 const DB_PASS = secretCfg?.password ?? process.env.DB_PASS ?? 'postgres';
-const DB_NAME = secretCfg?.dbname ?? process.env.DB_NAME ?? 'webforx_store';
-const DB_SSL_ENABLED = (process.env.DB_SSL === 'true') ||
-  ((process.env.DB_HOST && process.env.DB_HOST !== 'localhost') || !!secretCfg);
+const DB_NAME = secretCfg?.dbname ?? process.env.DB_NAME ?? (DB_TYPE === 'sqlite' ? ':memory:' : 'webforx_store');
+const DB_SSL_ENABLED = DB_TYPE === 'postgres' && (
+  (process.env.DB_SSL === 'true') ||
+  ((process.env.DB_HOST && process.env.DB_HOST !== 'localhost') || !!secretCfg)
+);
 const DB_SSL =
   DB_SSL_ENABLED
     ? (process.env.DB_SSL_CA_PATH
@@ -98,6 +102,10 @@ const OrderItemEntity = new EntitySchema({
 
 /** Optional: create DB (off for RDS) */
 async function ensureDatabaseExists() {
+  if (DB_TYPE !== 'postgres') {
+    console.log('DB_TYPE is not postgres (skipping DB creation)');
+    return;
+  }
   if ((process.env.CREATE_DB_IF_MISSING || 'false').toLowerCase() !== 'true') {
     console.log('CREATE_DB_IF_MISSING=false (skipping DB creation)');
     return;
@@ -157,14 +165,20 @@ async function uploadStaticFilesToS3() {
 }
 
 /** TypeORM DS */
- const AppDataSource = new DataSource({
-   type: 'postgres',
-   host: DB_HOST,
-   port: DB_PORT,
-   ssl: DB_SSL,
-   username: DB_USER,
-   password: DB_PASS,
-   database: DB_NAME,
+const dataSourceOptions = DB_TYPE === 'sqlite'
+  ? { type: 'sqlite', database: DB_NAME }
+  : {
+      type: 'postgres',
+      host: DB_HOST,
+      port: DB_PORT,
+      ssl: DB_SSL,
+      username: DB_USER,
+      password: DB_PASS,
+      database: DB_NAME,
+    };
+
+const AppDataSource = new DataSource({
+  ...dataSourceOptions,
   synchronize: (process.env.TYPEORM_SYNC || 'true').toLowerCase() === 'true',
   logging: false,
   entities: [ProductEntity, OrderEntity, OrderItemEntity],
@@ -386,42 +400,79 @@ app.post('/checkout', async (req, res) => {
 
 /** Startup */
 let server;
-ensureDatabaseExists()
-  .then(uploadStaticFilesToS3)
-  .then(() => AppDataSource.initialize())
-  .then(async () => {
-    console.log('Database connected.');
-    const repo = AppDataSource.getRepository('Product');
-    const count = await repo.count();
-    if (count === 0) {
-      const defaults = (process.env.SEED_PRODUCTS_JSON
-        ? JSON.parse(process.env.SEED_PRODUCTS_JSON)
-        : [
-            { name: 'WFX Strawberry Delight', price: 3.0, image: 'strawberry.jpg' },
-            { name: 'WFX Dark Chocolate',    price: 2.5, image: 'chocolate.jpg' },
-            { name: 'WFX Candy Crunch',      price: 2.75, image: 'candy.jpg' },
-            { name: 'WFX Berry Burst',       price: 3.0, image: 'berry.jpg' },
-            { name: 'WFX Salted Caramel',    price: 2.5, image: 'caramel.jpg' },
-            { name: 'WFX Orange Zest',       price: 2.5, image: 'orange.jpg' },
-          ]);
-      await repo.save(defaults);
-      console.log('Inserted default products.');
-    }
-    server = app.listen(port, '0.0.0.0', () => console.log(`Server on http://0.0.0.0:${port}`));
-  })
-  .catch(err => { console.error('Startup error:', err); process.exit(1); });
+
+async function initDataSource() {
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize();
+  }
+  return AppDataSource;
+}
+
+async function destroyDataSource() {
+  if (AppDataSource.isInitialized) {
+    await AppDataSource.destroy();
+  }
+}
+
+async function seedDefaultProducts() {
+  const repo = AppDataSource.getRepository('Product');
+  const count = await repo.count();
+  if (count > 0) return;
+  const defaults = (process.env.SEED_PRODUCTS_JSON
+    ? JSON.parse(process.env.SEED_PRODUCTS_JSON)
+    : [
+        { name: 'WFX Strawberry Delight', price: 3.0, image: 'strawberry.jpg' },
+        { name: 'WFX Dark Chocolate',    price: 2.5, image: 'chocolate.jpg' },
+        { name: 'WFX Candy Crunch',      price: 2.75, image: 'candy.jpg' },
+        { name: 'WFX Berry Burst',       price: 3.0, image: 'berry.jpg' },
+        { name: 'WFX Salted Caramel',    price: 2.5, image: 'caramel.jpg' },
+        { name: 'WFX Orange Zest',       price: 2.5, image: 'orange.jpg' },
+      ]);
+  await repo.save(defaults);
+  console.log('Inserted default products.');
+}
+
+async function startServer() {
+  await ensureDatabaseExists();
+  await uploadStaticFilesToS3();
+  await initDataSource();
+  console.log('Database connected.');
+  await seedDefaultProducts();
+  return new Promise((resolve) => {
+    server = app.listen(port, host, () => {
+      console.log(`Server on http://${host}:${port}`);
+      resolve(server);
+    });
+  });
+}
+
+if (require.main === module) {
+  startServer().catch(err => {
+    console.error('Startup error:', err);
+    process.exit(1);
+  });
+}
 
 /** Graceful shutdown */
 function shutdown() {
   console.log('Shutdown signal; closing...');
   if (server) {
     server.close(() => {
-      AppDataSource.destroy().finally(() => process.exit(0));
+      destroyDataSource().finally(() => process.exit(0));
     });
     setTimeout(() => process.exit(0), 10000).unref();
   } else {
-    process.exit(0);
+    destroyDataSource().finally(() => process.exit(0));
   }
 }
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+
+module.exports = {
+  app,
+  AppDataSource,
+  initDataSource,
+  destroyDataSource,
+  seedDefaultProducts,
+  startServer,
+};
